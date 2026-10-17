@@ -119,13 +119,28 @@ jobs:
         docker build -t heart-disease-prediction:${{ github.sha }} .
         docker build -t heart-disease-prediction:latest .
 
+    
     - name: Test Docker image
       run: |
         docker run -d -p 8000:8000 --name test-container heart-disease-prediction:latest
-        sleep 10
-        curl -f http://localhost:8000/health || exit 1
-        docker stop test-container
-        docker rm test-container
+
+        for i in {1..15}; do
+          if curl -fsS http://localhost:8000/health; then
+            echo "Health check passed"
+            docker stop test-container
+            docker rm test-container
+            exit 0
+          fi
+          echo "Waiting for application to become healthy..."
+          sleep 2
+        done
+
+        echo "Container logs:"
+        docker logs test-container
+        docker stop test-container || true
+        docker rm test-container || true
+        exit 1
+
 
     - name: Save Docker image
       run: |
